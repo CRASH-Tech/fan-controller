@@ -15,11 +15,14 @@ var (
 )
 
 func init() {
+	err := nvInit()
+	if err != nil {
+		panic(err)
+	}
 	mode := &serial.Mode{
 		BaudRate: 115200,
 	}
 
-	var err error
 	port, err = serial.Open("/dev/ttyUSB0", mode)
 	if err != nil {
 		panic(err)
@@ -29,39 +32,61 @@ func init() {
 }
 
 func main() {
-	fmt.Println("Start")
-	speeds := make(map[int]int)
-
-	for i := 1; i <= 4; i++ {
-		rpm, err := getFanSpeed(i)
-		if err != nil {
-			panic(err)
-		}
-		speeds[i] = rpm
-		time.Sleep(2 * time.Second)
-	}
-
-	for fan, rpm := range speeds {
-		fmt.Printf("FAN %d: %d\n", fan, rpm)
-	}
-
-	var err error
-	err = setFanSpeed(1, 30)
+	deviceCount, err := getDeviceCount()
 	if err != nil {
 		panic(err)
 	}
-	err = setFanSpeed(2, 30)
-	if err != nil {
-		panic(err)
-	}
+	fmt.Printf("DEVICE COUNT: %d\n", deviceCount)
 
-	for {
-		err := watchdog()
-		if err != nil {
-			panic(err)
-		}
-		time.Sleep(10 * time.Second)
-	}
+	// for {
+	// 	for deviceIndex := range deviceCount {
+	// 		//fmt.Printf("DEVICE INDEX: %d\n", deviceIndex)
+
+	// 		temp, err := getDeviceGPUTemp(deviceIndex)
+	// 		if err != nil {
+	// 			panic(err)
+	// 		}
+	// 		utilGPU, utilMem, err := getDeviceUtil(deviceIndex)
+	// 		if err != nil {
+	// 			panic(err)
+	// 		}
+
+	// 		fmt.Printf("DEVICE: %d TEMP: %d GPU: %d%% MEM: %d%%\n", deviceIndex, temp, utilGPU, utilMem)
+	// 	}
+	// 	time.Sleep(1 * time.Second)
+	// }
+	// speeds := make(map[int]int)
+
+	// for i := 1; i <= 4; i++ {
+	// 	rpm, err := getFanSpeed(i)
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
+	// 	speeds[i] = rpm
+	// 	time.Sleep(2 * time.Second)
+	// }
+
+	// for fan, rpm := range speeds {
+	// 	fmt.Printf("FAN %d: %d\n", fan, rpm)
+	// }
+
+	// var err error
+	// err = setFanSpeed(1, 30)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// err = setFanSpeed(2, 30)
+	// if err != nil {
+	// 	panic(err)
+	// }
+
+	// for {
+	// 	err := watchdog()
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
+	// 	time.Sleep(10 * time.Second)
+	// }
 
 	// rpm, err := getFanSpeed(1)
 	// if err != nil {
