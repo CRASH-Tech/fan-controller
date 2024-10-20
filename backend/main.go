@@ -29,20 +29,21 @@ func init() {
 }
 
 func main() {
-	// speeds := make(map[int]int)
+	fmt.Println("Start")
+	speeds := make(map[int]int)
 
-	// for i := 1; i <= 4; i++ {
-	// 	rpm, err := getFanSpeed(i)
-	// 	if err != nil {
-	// 		panic(err)
-	// 	}
-	// 	speeds[i] = rpm
-	// 	time.Sleep(2 * time.Second)
-	// }
+	for i := 1; i <= 4; i++ {
+		rpm, err := getFanSpeed(i)
+		if err != nil {
+			panic(err)
+		}
+		speeds[i] = rpm
+		time.Sleep(2 * time.Second)
+	}
 
-	// for fan, rpm := range speeds {
-	// 	fmt.Printf("FAN %d: %d\n", fan, rpm)
-	// }
+	for fan, rpm := range speeds {
+		fmt.Printf("FAN %d: %d\n", fan, rpm)
+	}
 
 	var err error
 	err = setFanSpeed(1, 30)
