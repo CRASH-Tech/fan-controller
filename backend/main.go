@@ -2,9 +2,9 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
+	"sort"
 	"time"
 
 	"go.bug.st/serial"
@@ -50,16 +50,35 @@ func init() {
 }
 
 func main() {
-	setDeviceFans(0, 40)
+	//setDeviceFans(0, 40)
 
-	time.Sleep(1 * time.Second)
+	//time.Sleep(1 * time.Second)
 	for {
 		getFanStats()
 		getDeviceStats()
 
+		setDevicesCurve()
+
 		checkAllDevices()
 		watchdog()
 		time.Sleep(1 * time.Second)
+	}
+}
+
+func setDevicesCurve() {
+	for _, deviceConfig := range config.Devices {
+		keys := make([]int, 0, len(deviceConfig.Curve))
+		for k, _ := range deviceConfig.Curve {
+			keys = append(keys, k)
+		}
+		sort.Sort(sort.Reverse(sort.IntSlice(keys)))
+
+		for _, k := range keys {
+			if deviceStats[deviceConfig.ID].Temp >= k {
+				setDeviceFans(deviceConfig.ID, deviceConfig.Curve[k])
+				return
+			}
+		}
 	}
 }
 
@@ -85,8 +104,14 @@ func getDeviceStats() {
 
 		deviceStats[deviceIndex] = DeviceStats{Temp: temp, UtilGPU: utilGPU, UtilMem: utilMem}
 
+		deviceConfig, err := getDeviceConfig(deviceIndex)
+		if err != nil {
+			setEmergencyMode()
+			panic(err)
+		}
+
 		var fans string
-		for _, fanId := range config.PortMap[deviceIndex].Fans {
+		for _, fanId := range deviceConfig.Fans {
 			fans = fmt.Sprintf("%s FAN_%d: %d", fans, fanId, fanStats[fanId])
 
 		}
@@ -109,27 +134,33 @@ func getFanStats() {
 }
 
 func setDeviceFans(id, percent int) error {
-	for _, portMap := range config.PortMap {
-		if portMap.ID == id {
-			for _, fanId := range portMap.Fans {
-				setFanSpeed(fanId, percent)
-			}
+	device, err := getDeviceConfig(id)
+	if err != nil {
+		setEmergencyMode()
+		panic(err)
+	}
+	for _, fanId := range device.Fans {
+		err := setFanSpeed(fanId, percent)
+		if err != nil {
+			setEmergencyMode()
+			panic(err)
 		}
 	}
 
-	return errors.New("cannot find device id")
+	return nil
 }
 
-// func printDeviceStats() {
-// 	for deviceIndex, stats := range deviceStats {
-// 		if stats.Temp >= config.CriticalTemp {
-// 			fmt.Printf("DEVICE: %d TEMP: %d GPU: %d%% MEM: %d%%\n", deviceIndex, stats.Temp, stats.UtilGPU, stats.UtilMem)
-// 		}
-// 	}
-// }
+func getDeviceConfig(id int) (Device, error) {
+	for _, device := range config.Devices {
+		if device.ID == id {
+			return device, nil
+		}
+	}
+
+	return Device{}, fmt.Errorf("cannot find device %d in config", id)
+}
 
 func checkAllDevices() {
-
 	for deviceIndex, stats := range deviceStats {
 		if stats.Temp >= config.CriticalTemp {
 			fmt.Printf("Device %d is over critical temperature(%d>=%d)! Turn on Emergency mode!\n", deviceIndex, stats.Temp, config.CriticalTemp)

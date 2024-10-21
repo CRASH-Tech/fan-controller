@@ -1,14 +1,15 @@
 package main
 
 type Config struct {
-	SerialPort   string     `yaml:"serialPort"`
-	PortMap      []PortItem `yaml:"portMap"`
-	CriticalTemp int        `yaml:"criticalTemp"`
+	SerialPort   string   `yaml:"serialPort"`
+	Devices      []Device `yaml:"devices"`
+	CriticalTemp int      `yaml:"criticalTemp"`
 }
 
-type PortItem struct {
-	ID   int   `yaml:"id"`
-	Fans []int `yaml:"fans"`
+type Device struct {
+	ID    int         `yaml:"id"`
+	Fans  []int       `yaml:"fans"`
+	Curve map[int]int `yaml:"curve"`
 }
 
 type DeviceStats struct {
