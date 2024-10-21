@@ -2,153 +2,138 @@
 package main
 
 import (
+	"errors"
+	"flag"
 	"fmt"
-	"strconv"
-	"strings"
 	"time"
 
 	"go.bug.st/serial"
 )
 
+const (
+	FAN_COUT = 4
+)
+
 var (
-	port serial.Port
+	config      Config
+	port        serial.Port
+	deviceStats map[int]DeviceStats
+	fanStats    map[int]int
 )
 
 func init() {
-	err := nvInit()
+	deviceStats = make(map[int]DeviceStats)
+	fanStats = make(map[int]int)
+
+	configPath := flag.String("c", "config.yaml", "Path to the YAML configuration file")
+	flag.Parse()
+
+	var err error
+	config, err = readConfig(*configPath)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("cannot read config file: %s", err))
 	}
+
+	err = nvInit()
+	if err != nil {
+		panic(fmt.Errorf("cannot init nvml: %s", err))
+	}
+
 	mode := &serial.Mode{
 		BaudRate: 115200,
 	}
 
-	port, err = serial.Open("/dev/ttyUSB0", mode)
+	port, err = serial.Open(config.SerialPort, mode)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("cannot open serial port: %s", err))
 	}
-
-	// port = aport
 }
 
 func main() {
+	setDeviceFans(0, 40)
+
+	time.Sleep(1 * time.Second)
+	for {
+		getFanStats()
+		getDeviceStats()
+
+		checkAllDevices()
+		watchdog()
+		time.Sleep(1 * time.Second)
+	}
+}
+
+func getDeviceStats() {
 	deviceCount, err := getDeviceCount()
 	if err != nil {
-		panic(err)
+		setEmergencyMode()
+		panic(fmt.Errorf("cannot get devices count: %s", err))
 	}
-	fmt.Printf("DEVICE COUNT: %d\n", deviceCount)
 
-	// for {
-	// 	for deviceIndex := range deviceCount {
-	// 		//fmt.Printf("DEVICE INDEX: %d\n", deviceIndex)
+	for deviceIndex := range deviceCount {
+		temp, err := getDeviceGPUTemp(deviceIndex)
+		if err != nil {
+			setEmergencyMode()
+			panic(fmt.Errorf("cannot get device temperature: %s", err))
+		}
 
-	// 		temp, err := getDeviceGPUTemp(deviceIndex)
-	// 		if err != nil {
-	// 			panic(err)
-	// 		}
-	// 		utilGPU, utilMem, err := getDeviceUtil(deviceIndex)
-	// 		if err != nil {
-	// 			panic(err)
-	// 		}
+		utilGPU, utilMem, err := getDeviceUtil(deviceIndex)
+		if err != nil {
+			setEmergencyMode()
+			panic(fmt.Errorf("cannot get device utilization: %s", err))
+		}
 
-	// 		fmt.Printf("DEVICE: %d TEMP: %d GPU: %d%% MEM: %d%%\n", deviceIndex, temp, utilGPU, utilMem)
-	// 	}
-	// 	time.Sleep(1 * time.Second)
-	// }
-	// speeds := make(map[int]int)
+		deviceStats[deviceIndex] = DeviceStats{Temp: temp, UtilGPU: utilGPU, UtilMem: utilMem}
 
-	// for i := 1; i <= 4; i++ {
-	// 	rpm, err := getFanSpeed(i)
-	// 	if err != nil {
-	// 		panic(err)
-	// 	}
-	// 	speeds[i] = rpm
-	// 	time.Sleep(2 * time.Second)
-	// }
+		var fans string
+		for _, fanId := range config.PortMap[deviceIndex].Fans {
+			fans = fmt.Sprintf("%s FAN_%d: %d", fans, fanId, fanStats[fanId])
 
-	// for fan, rpm := range speeds {
-	// 	fmt.Printf("FAN %d: %d\n", fan, rpm)
-	// }
+		}
 
-	// var err error
-	// err = setFanSpeed(1, 30)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// err = setFanSpeed(2, 30)
-	// if err != nil {
-	// 	panic(err)
-	// }
-
-	// for {
-	// 	err := watchdog()
-	// 	if err != nil {
-	// 		panic(err)
-	// 	}
-	// 	time.Sleep(10 * time.Second)
-	// }
-
-	// rpm, err := getFanSpeed(1)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// fmt.Println(rpm)
-
+		fmt.Printf("DEVICE: %d TEMP: %d GPU: %d%% MEM: %d%%%s\n", deviceIndex, temp, utilGPU, utilMem, fans)
+	}
 }
 
-func watchdog() error {
-	_, err := port.Write([]byte("WATCHDOG\n"))
-	if err != nil {
-		return err
-	}
+func getFanStats() {
+	for fanId := range FAN_COUT {
+		fanId = fanId + 1
 
-	return nil
+		rpm, err := getFanSpeed(fanId)
+		if err != nil {
+			setEmergencyMode()
+			panic(fmt.Errorf("cannot get fan speed: %s", err))
+		}
+		fanStats[fanId] = rpm
+	}
 }
 
-func setFanSpeed(id, percent int) error {
-	//fmt.Printf("SET FAN %d TO %d\n", id, percent)
-
-	_, err := port.Write([]byte(fmt.Sprintf("SET %d %d\n", id, percent)))
-	if err != nil {
-		return err
+func setDeviceFans(id, percent int) error {
+	for _, portMap := range config.PortMap {
+		if portMap.ID == id {
+			for _, fanId := range portMap.Fans {
+				setFanSpeed(fanId, percent)
+			}
+		}
 	}
 
-	return nil
+	return errors.New("cannot find device id")
 }
 
-func getFanSpeed(id int) (int, error) {
-	//fmt.Printf("GET FAN %d SPEED\n", id)
-	_, err := port.Write([]byte(fmt.Sprintf("GET %d\n", id)))
-	if err != nil {
-		return -1, err
+// func printDeviceStats() {
+// 	for deviceIndex, stats := range deviceStats {
+// 		if stats.Temp >= config.CriticalTemp {
+// 			fmt.Printf("DEVICE: %d TEMP: %d GPU: %d%% MEM: %d%%\n", deviceIndex, stats.Temp, stats.UtilGPU, stats.UtilMem)
+// 		}
+// 	}
+// }
+
+func checkAllDevices() {
+
+	for deviceIndex, stats := range deviceStats {
+		if stats.Temp >= config.CriticalTemp {
+			fmt.Printf("Device %d is over critical temperature(%d>=%d)! Turn on Emergency mode!\n", deviceIndex, stats.Temp, config.CriticalTemp)
+			setEmergencyMode()
+		}
 	}
-
-	buff := make([]byte, 100)
-	for {
-		err := port.ResetInputBuffer()
-		if err != nil {
-			return -1, err
-		}
-
-		err = port.ResetOutputBuffer()
-		if err != nil {
-			return -1, err
-		}
-
-		port.SetReadTimeout(5 * time.Second)
-		n, err := port.Read(buff)
-		if err != nil {
-			return -1, err
-		}
-		if n == 0 {
-			break
-		}
-
-		//fmt.Printf("%v", string(buff[:n]))
-		data := strings.TrimSpace(string(buff[:n]))
-		rpm, err := strconv.Atoi(data)
-		return rpm, err
-	}
-
-	return -1, err
 }

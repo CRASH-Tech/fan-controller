@@ -5,6 +5,7 @@ go 1.23.2
 require (
 	github.com/NVIDIA/go-nvml v0.12.4-0
 	go.bug.st/serial v1.6.2
+	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (

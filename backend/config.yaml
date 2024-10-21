@@ -1,0 +1,9 @@
+serialPort: /dev/ttyUSB0
+criticalTemp: 45
+portMap:
+  - id: 0
+    fans:
+      - 1
+      - 2
+    curve:
+      - 10: 0
