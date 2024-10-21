@@ -1,0 +1,14 @@
+[Unit]
+Description=Fan Controller Service
+After=network.target
+
+[Service]
+ExecStart=/opt/fan-controller/fan-controller
+Restart=always
+RestartSec=5
+User=root
+Group=root
+WorkingDirectory=/opt/fan-controller
+
+[Install]
+WantedBy=multi-user.target

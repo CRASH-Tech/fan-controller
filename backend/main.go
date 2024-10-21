@@ -50,9 +50,6 @@ func init() {
 }
 
 func main() {
-	//setDeviceFans(0, 40)
-
-	//time.Sleep(1 * time.Second)
 	for {
 		getFanStats()
 		getDeviceStats()
@@ -76,7 +73,7 @@ func setDevicesCurve() {
 		for _, k := range keys {
 			if deviceStats[deviceConfig.ID].Temp >= k {
 				setDeviceFans(deviceConfig.ID, deviceConfig.Curve[k])
-				return
+				break
 			}
 		}
 	}
