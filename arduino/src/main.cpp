@@ -28,6 +28,7 @@ int getFanSpeedRpm(int SIGNAL_PIN) {
 
 void setFanSpeedPercent(int PWM_PIN, int p) {
   int value = (p / 100.0) * 255;
+  analogWriteFreq(25000);
   analogWrite(PWM_PIN, value);
 }
 
