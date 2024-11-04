@@ -38,8 +38,6 @@ func setFanSpeed(id, percent int) error {
 }
 
 func getFanSpeed(id int) (int, error) {
-	//fmt.Printf("GET FAN %d SPEED\n", id)
-
 	_, err := port.Write([]byte(fmt.Sprintf("GET %d\n", id)))
 	if err != nil {
 		time.Sleep(500 * time.Millisecond)

@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	FAN_COUT = 4
+	FAN_COUT = 2
 )
 
 var (
