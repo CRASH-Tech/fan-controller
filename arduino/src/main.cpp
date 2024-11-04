@@ -1,14 +1,10 @@
 #include <Adafruit_Sensor.h>
 #include <Wire.h>
 
-#define FAN1_PWM_PIN 12     // D6
-#define FAN1_SIGNAL_PIN 13  // D7
-#define FAN2_PWM_PIN 0      // D3
-#define FAN2_SIGNAL_PIN 2   // D4
-#define FAN3_PWM_PIN 5      // D1
-#define FAN3_SIGNAL_PIN 4   // D2
-#define FAN4_PWM_PIN 15     // D8
-#define FAN4_SIGNAL_PIN 14  // D5
+#define FAN1_PWM_PIN D5
+#define FAN1_SIGNAL_PIN D6
+#define FAN2_PWM_PIN D1
+#define FAN2_SIGNAL_PIN D2
 
 #define EMERGENCY_SPEED 100
 
@@ -37,8 +33,6 @@ void emergencyMode() {
 
   setFanSpeedPercent(FAN1_PWM_PIN, EMERGENCY_SPEED);
   setFanSpeedPercent(FAN2_PWM_PIN, EMERGENCY_SPEED);
-  setFanSpeedPercent(FAN3_PWM_PIN, EMERGENCY_SPEED);
-  setFanSpeedPercent(FAN4_PWM_PIN, EMERGENCY_SPEED);
 }
 
 void resetWatchdog() { lastWatchdogReceived = millis(); }
@@ -70,12 +64,6 @@ void processCommand(String cmd) {
       case 2:
         pin = FAN2_PWM_PIN;
         break;
-      case 3:
-        pin = FAN3_PWM_PIN;
-        break;
-      case 4:
-        pin = FAN4_PWM_PIN;
-        break;
       default:
         Serial.println("UNKNOWN FAN!");
         return;
@@ -95,12 +83,6 @@ void processCommand(String cmd) {
         break;
       case 2:
         pin = FAN2_SIGNAL_PIN;
-        break;
-      case 3:
-        pin = FAN3_SIGNAL_PIN;
-        break;
-      case 4:
-        pin = FAN4_SIGNAL_PIN;
         break;
       default:
         Serial.println("UNKNOWN FAN!");
@@ -123,10 +105,7 @@ void setup() {
   pinMode(FAN1_SIGNAL_PIN, INPUT_PULLUP);
   pinMode(FAN2_PWM_PIN, OUTPUT);
   pinMode(FAN2_SIGNAL_PIN, INPUT_PULLUP);
-  pinMode(FAN3_PWM_PIN, OUTPUT);
-  pinMode(FAN3_SIGNAL_PIN, INPUT_PULLUP);
-  pinMode(FAN4_PWM_PIN, OUTPUT);
-  pinMode(FAN4_SIGNAL_PIN, INPUT_PULLUP);
+  ;
 
   emergencyMode();
 }
